@@ -68,8 +68,15 @@ def chat():
 )
         reply = response.choices[0].message.content
         return jsonify({"response": reply, "source": "groq"})
+    
     except Exception as e:
-        return jsonify({"response": _fallback_response(user_message), "source": "fallback", "note": str(e)})
+        print(f"Groq API error: {type(e).__name__}: {e}", flush=True)
+        return jsonify({
+            "response": _fallback_response(user_message),
+            "source": "fallback",
+            "note": f"{type(e).__name__}: {e}"
+        })
+
 
 
 def _fallback_response(message: str) -> str:
