@@ -13,8 +13,8 @@ import joblib
 import os
 import random
 
-MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
-os.makedirs(MODEL_DIR, exist_ok=True)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_DIR = os.path.join(BASE_DIR, "models")
 
 CROP_ENCODER_PATH = os.path.join(MODEL_DIR, 'crop_encoder.pkl')
 CROP_MODEL_PATH = os.path.join(MODEL_DIR, 'crop_recommender.pkl')
