@@ -80,9 +80,7 @@ function MicButton({ isRecording, isSupported, onClick, disabled }) {
         style={{
           width: 42, height: 42, borderRadius: '50%', border: 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          background: isRecording
-            ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-            : 'linear-gradient(135deg, var(--green-700), var(--green-800))',
+            background: isRecording ? '#b64d43' : 'var(--green-800)',
           color: 'white', fontSize: 18,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: isRecording ? '0 0 0 3px rgba(239,68,68,0.25)' : '0 2px 8px rgba(0,0,0,0.18)',
@@ -293,9 +291,9 @@ export default function Chatbot({ district }) {
 
     try {
       const history = messages.map(m => ({ role: m.role, content: m.content }));
-      const res = await sendChat(`[District: ${district}] ${msg}`, history);
+      const res = await sendChat(msg, history, district);
       const reply = res.data.response;
-      const newMsg = { role: 'assistant', content: reply, ts: new Date(), source: res.data.source };
+      const newMsg = { role: 'assistant', content: reply, ts: new Date(), source: res.data.source, sources: res.data.sources || [] };
       setMessages(prev => {
         const updated = [...prev, newMsg];
         // Auto-speak if TTS enabled
@@ -304,10 +302,10 @@ export default function Chatbot({ district }) {
         }
         return updated;
       });
-    } catch {
+    } catch (error) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: '⚠️ Could not reach the server. Please ensure the backend is running on port 5000.',
+        content: error.response?.data?.error || '⚠️ Could not reach the server. Please ensure the backend is running.',
         ts: new Date()
       }]);
     }
@@ -332,7 +330,7 @@ export default function Chatbot({ district }) {
       <style>{pulseStyle}</style>
 
       <p className="section-title">KrishiBot AI Assistant</p>
-      <p className="section-sub">Powered by Groq · LLaMA 3.3 70B · Voice Input 🎙️ · Voice Output 🔊 · English & Bengali</p>
+      <p className="section-sub">Grounded in West Bengal crop, scheme & seasonal guidance · Groq AI · Voice Input 🎙️ · Voice Output 🔊 · English & Bengali</p>
 
       <div className="grid-2" style={{ gap: 24, alignItems: 'flex-start' }}>
 
@@ -343,11 +341,11 @@ export default function Chatbot({ district }) {
             {/* Header */}
             <div style={{
               padding: '12px 18px',
-              background: 'linear-gradient(90deg, var(--green-800), var(--green-700))',
+              background: 'var(--green-900)',
               color: 'white', borderRadius: 'var(--radius) var(--radius) 0 0',
               display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
             }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#69F0AE', boxShadow: '0 0 6px #69F0AE' }} />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#a7c8a9' }} />
               <span style={{ fontWeight: 700, fontSize: 15 }}>🌾 KrishiBot</span>
 
               {/* TTS toggle */}
@@ -364,7 +362,7 @@ export default function Chatbot({ district }) {
                 {ttsEnabled ? '🔊 Auto-Speak ON' : '🔇 Auto-Speak OFF'}
               </button>
 
-              <span style={{ fontSize: 11, opacity: 0.7 }}>Groq · LLaMA 3.3</span>
+              <span style={{ fontSize: 11, opacity: 0.7 }}>RAG · Groq</span>
             </div>
 
             {/* Voice language selector */}
@@ -432,6 +430,11 @@ export default function Chatbot({ district }) {
                     style={{ border: speakingIdx === i ? '2px solid var(--green-400)' : undefined }}>
                     {m.content}
                   </div>
+                  {m.sources?.length > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--gray-600)', margin: '4px 4px 0', maxWidth: '90%' }}>
+                      Sources: {m.sources.join(' · ')}
+                    </div>
+                  )}
                   <div style={{ fontSize: 10, color: 'var(--gray-600)', margin: '2px 4px' }}>
                     {formatTime(m.ts || new Date())}
                     {m.role === 'user' && m.isVoice && <span style={{ marginLeft: 4 }}>🎙️</span>}
@@ -519,8 +522,8 @@ export default function Chatbot({ district }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Voice assistant card */}
-          <div className="card" style={{ background: 'linear-gradient(135deg, var(--green-900), var(--green-800))', border: 'none' }}>
-            <div style={{ color: 'white' }}>
+          <div className="card">
+            <div>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                 🎙️ Voice Assistant Guide
               </div>
@@ -532,8 +535,8 @@ export default function Chatbot({ district }) {
                 ['Auto-Speak ON', 'Replies read automatically'],
               ].map(([icon, desc]) => (
                 <div key={icon} style={{ display: 'flex', gap: 10, marginBottom: 7, fontSize: 12, alignItems: 'center' }}>
-                  <span style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 5, padding: '2px 7px', fontWeight: 700, color: 'var(--yellow)', minWidth: 90, textAlign: 'center', flexShrink: 0 }}>{icon}</span>
-                  <span style={{ color: 'var(--mint, #B7E4C7)' }}>{desc}</span>
+                  <span style={{ background: 'var(--green-50)', borderRadius: 5, padding: '3px 7px', fontWeight: 650, color: 'var(--green-800)', minWidth: 90, textAlign: 'center', flexShrink: 0 }}>{icon}</span>
+                  <span style={{ color: 'var(--gray-600)' }}>{desc}</span>
                 </div>
               ))}
             </div>
@@ -611,11 +614,11 @@ export default function Chatbot({ district }) {
           <div className="card" style={{ background: 'var(--green-50)', borderColor: 'var(--green-100)' }}>
             <div style={{ fontSize: 13, color: 'var(--green-800)', lineHeight: 1.7 }}>
               <strong>📌 District:</strong> {district}<br />
-              <strong>🔗 Model:</strong> LLaMA 3.3 70B (Groq)<br />
+              <strong>🔗 Assistant:</strong> Groq AI + local farm knowledge<br />
               <strong>🌐 Voice Input:</strong> English · বাংলা · हिन्दी<br />
               <strong>🔊 Voice Output:</strong> Browser TTS<br /><br />
               <em style={{ fontSize: 11, color: 'var(--gray-600)' }}>
-                Voice features use browser Web Speech API — no extra setup needed. Set GROQ_API_KEY for full AI.
+                Voice features use browser Web Speech API. Local farm references work without an API key; set GROQ_API_KEY for generated answers.
               </em>
             </div>
           </div>

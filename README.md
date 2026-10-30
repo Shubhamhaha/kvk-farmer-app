@@ -90,7 +90,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Now open `.env` and paste your Groq API key:
+Now open `.env` and paste your Groq API key (the backend loads this file automatically):
 ```
 GROQ_API_KEY=gsk_your_actual_key_here
 ```
@@ -243,10 +243,11 @@ pip install -r requirements.txt --force-reinstall
 python -c "from services.ml_service import train_models; train_models()"
 ```
 
-**Chatbot returns fallback responses:**
-- Ensure `GROQ_API_KEY` is set in `backend/.env`
-- Verify the key at https://console.groq.com
-- The app still works without a key using rule-based responses
+**Chatbot uses local guidance instead of generated answers:**
+- Ensure `GROQ_API_KEY` is set in `backend/.env` and restart the backend.
+- Set `GROQ_MODEL` to a model enabled for your Groq account if needed.
+- Without a key, KrishiBot retrieves answers from its bundled crop, scheme, seasonal advisory, and safe-use references.
+- Answers show the reference names used. The bundled knowledge base is curated app data, not a live government or weather feed.
 
 **Frontend can't reach backend:**
 - Ensure backend is running on port 5000

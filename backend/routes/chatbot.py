@@ -1,5 +1,7 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 import os
+from services.knowledge_base import retrieve_context
+from dotenv import load_dotenv
 try:
     from groq import Groq
 except ImportError:
@@ -36,50 +38,88 @@ Guidelines:
 
 def _get_groq_client():
     api_key = os.environ.get("GROQ_API_KEY", "")
+    if not api_key:
+        backend_env = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+        load_dotenv(backend_env)
+        api_key = os.environ.get("GROQ_API_KEY", "")
     if not api_key or Groq is None:
         return None
     return Groq(api_key=api_key)
 
 @chatbot_bp.route('/message', methods=['POST'])
 def chat():
-    data = request.json or {}
-    user_message = data.get("message", "").strip()
+    data = request.get_json(silent=True) or {}
+    user_message = data.get("message", "")
+    user_message = user_message.strip() if isinstance(user_message, str) else ""
     conversation_history = data.get("history", [])
+    district = data.get("district", "Bardhaman")
+    if not isinstance(district, str) or len(district) > 80:
+        district = "Bardhaman"
 
     if not user_message:
         return jsonify({"error": "Message cannot be empty"}), 400
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    references = retrieve_context(user_message, district)
+    context = "\n\n".join(
+        f"[{item['source']}] {item['content']}" for item in references
+    ) or "No relevant reference was found in the local knowledge base."
+    system_prompt = (
+        SYSTEM_PROMPT
+        + "\n\nUse the retrieved references below as the factual basis for crop, scheme, "
+          "and advisory details. If they do not answer the question, say what is missing "
+          "and recommend checking with the local KVK. Do not invent prices, doses, or eligibility. "
+          "Cite relevant reference labels in square brackets.\n\nRetrieved references:\n"
+        + context
+    )
+    messages = [{"role": "system", "content": system_prompt}]
+    if not isinstance(conversation_history, list):
+        conversation_history = []
     for msg in conversation_history[-10:]:
+        if not isinstance(msg, dict):
+            continue
         if msg.get("role") in ["user", "assistant"] and msg.get("content"):
-            messages.append({"role": msg["role"], "content": msg["content"]})
+            content = msg["content"]
+            if isinstance(content, str):
+                messages.append({"role": msg["role"], "content": content[:4000]})
     messages.append({"role": "user", "content": user_message})
 
     client = _get_groq_client()
     if not client:
-        return jsonify({"response": _fallback_response(user_message), "source": "fallback"})
+        return jsonify({"response": _fallback_response(user_message, references),
+                        "source": "local knowledge base", "sources": [r["source"] for r in references]})
 
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
+            model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
            messages=messages,
             max_tokens=1024,
-            temperature=0.7,
+            temperature=0.5,
+            # groq==0.9.0 accepts newer model parameters through extra_body.
+            # Hide reasoning tokens and keep effort low so answers fit the output budget.
+            extra_body={"reasoning_effort": "low", "include_reasoning": False},
 )
-        reply = response.choices[0].message.content
-        return jsonify({"response": reply, "source": "groq"})
-    
-    except Exception as e:
-        print(f"Groq API error: {type(e).__name__}: {e}", flush=True)
-        return jsonify({
-            "response": _fallback_response(user_message),
-            "source": "fallback",
-            "note": f"{type(e).__name__}: {e}"
-        })
+        reply = (response.choices[0].message.content or "").strip()
+        if not reply:
+            return jsonify({"response": _fallback_response(user_message, references),
+                            "source": "local knowledge base", "sources": [r["source"] for r in references],
+                            "note": "AI service returned an empty answer; showing retrieved local guidance."})
+        return jsonify({"response": reply, "source": "Groq + local RAG",
+                        "sources": [r["source"] for r in references]})
+    except Exception as error:
+        current_app.logger.exception("Groq chat request failed (%s)", type(error).__name__)
+        return jsonify({"response": _fallback_response(user_message, references),
+                        "source": "local knowledge base", "sources": [r["source"] for r in references],
+                        "note": "AI service is temporarily unavailable; showing retrieved local guidance."})
 
 
-
-def _fallback_response(message: str) -> str:
+def _fallback_response(message: str, references=None) -> str:
+    if references:
+        excerpts = "\n\n".join(
+            f"[{item['source']}] {item['content']}" for item in references[:3]
+        )
+        return ("Here is the closest guidance in the local KVK knowledge base:\n\n"
+                + excerpts
+                + "\n\nFor advice specific to your field, confirm details with your local KVK.")
     msg = message.lower()
     if any(w in msg for w in ["rice", "paddy", "dhan", "ধান"]):
         return ("For Aman paddy in West Bengal: Transplant seedlings 25-30 days old at 20x15 cm spacing. "

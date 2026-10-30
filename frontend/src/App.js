@@ -6,13 +6,14 @@ import Chatbot from './pages/Chatbot';
 import MarketPrices from './pages/MarketPrices';
 import Schemes from './pages/Schemes';
 import { getDistricts } from './services/api';
+import { Home, FileText, Bot, BarChart3, Landmark } from 'lucide-react';
 
 const NAV = [
-  { path: '/',         icon: '🏠', label: 'Dashboard' },
-  { path: '/report',   icon: '📄', label: 'Farm Report' },
-  { path: '/chat',     icon: '🤖', label: 'KrishiBot AI' },
-  { path: '/market',   icon: '📊', label: 'Market Prices' },
-  { path: '/schemes',  icon: '🏛️', label: 'Govt Schemes' },
+  { path: '/',         icon: Home, label: 'Dashboard' },
+  { path: '/report',   icon: FileText, label: 'Farm Report' },
+  { path: '/chat',     icon: Bot, label: 'KrishiBot AI' },
+  { path: '/market',   icon: BarChart3, label: 'Market Prices' },
+  { path: '/schemes',  icon: Landmark, label: 'Govt Schemes' },
 ];
 
 function Sidebar({ district, setDistrict, districts }) {
@@ -32,7 +33,7 @@ function Sidebar({ district, setDistrict, districts }) {
             className={`nav-item ${location.pathname === n.path ? 'active' : ''}`}
             onClick={() => navigate(n.path)}
           >
-            <span className="nav-icon">{n.icon}</span>
+            <n.icon className="nav-icon" size={17} strokeWidth={1.8} />
             {n.label}
           </button>
         ))}
@@ -68,7 +69,7 @@ function Layout({ district, setDistrict, districts }) {
       <Sidebar district={district} setDistrict={setDistrict} districts={districts} />
       <div className="main-content">
         <header className="topbar">
-          <h1>{current.icon} {current.label}</h1>
+          <h1><current.icon size={17} strokeWidth={1.8} /> {current.label}</h1>
           <div className="topbar-right">
             <span className="district-badge">📍 {district}</span>
           </div>
@@ -83,6 +84,14 @@ function Layout({ district, setDistrict, districts }) {
           </Routes>
         </main>
       </div>
+      <nav className="mobile-nav" aria-label="Main navigation">
+        {NAV.map(n => (
+          <button key={n.path} className={`nav-item ${location.pathname === n.path ? 'active' : ''}`} onClick={() => navigate(n.path)}>
+            <n.icon className="nav-icon" size={17} strokeWidth={1.8} />
+            <span>{n.label === 'KrishiBot AI' ? 'Assistant' : n.label === 'Market Prices' ? 'Markets' : n.label === 'Govt Schemes' ? 'Schemes' : n.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
